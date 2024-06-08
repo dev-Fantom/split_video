@@ -7,8 +7,15 @@
 * Python 3.10.0
 
 ## 使い方
+Install Library form requirements.txt.
 
-引数の説明
+requirements.txtからライブラリをインストール
+
+```shell
+pip install -r requirements.txt
+```
+
+### 引数の説明
 
 1. 動画ファイルが入っているディレクトリ 
 2. 分割する秒数（未指定の場合は600で処理）
@@ -24,3 +31,7 @@ Moviepy - Running:
 >>> "+ " ".join(cmd)
 Moviepy - Command successful
 ```
+
+## Author / 作成者
+
+- [Fantom, Inc. (JP)](https://twitter.com/Fantomcojp)
