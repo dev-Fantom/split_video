@@ -3,50 +3,92 @@ import glob
 import sys
 
 from moviepy.video.io.VideoFileClip import VideoFileClip
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 
-def split_video(file_path: str, duration: int) -> None:
+def split_video(file_path: str, duration: int, fps: int = None) -> None:
     # ファイル名から拡張子を取得
     file_name, file_extension = os.path.splitext(os.path.basename(file_path))
 
     # 分割したビデオの保存先ディレクトリを作成
-    output_dir = f"{file_name}_split"
+    if fps:
+        output_dir = f"{file_name}_{fps}fps_split"
+    else:
+        output_dir = f"{file_name}_split"
     os.makedirs(output_dir, exist_ok=True)
 
     # 動画の長さを取得し、動画ファイルを適切に閉じる
     with VideoFileClip(file_path) as video:
         total_duration = int(video.duration)
 
-    # 指定した間隔でビデオを分割
-    start_time = 0
-    end_time = duration
+    # 最後の動画が1分未満の場合の処理を考慮して分割範囲を計算
+    full_segments = total_duration // duration
+    remainder = total_duration % duration
+    
+    segments = []
+    
+    if remainder < 60 and full_segments > 0:
+        # 最後のセグメントが60秒未満の場合、直前のセグメントと結合
+        for i in range(full_segments - 1):
+            start_time = i * duration
+            end_time = start_time + duration
+            segments.append((start_time, end_time))
+        
+        # 最後のセグメントは残り時間を含む
+        last_start = (full_segments - 1) * duration
+        last_end = total_duration
+        segments.append((last_start, last_end))
+    else:
+        # 通常の分割処理
+        start_time = 0
+        while start_time < total_duration:
+            end_time = min(start_time + duration, total_duration)
+            segments.append((start_time, end_time))
+            start_time += duration
 
-    while start_time < total_duration:
-        # 実際の終了時間が動画の総時間を超えないように調整
-        end_time = min(end_time, total_duration)
-
+    # 各セグメントを処理
+    for start_time, end_time in segments:
         # 分割範囲を指定してビデオを切り出し
         output_path = os.path.join(output_dir, f"{file_name}_{start_time}_{end_time}{file_extension}")
-        ffmpeg_extract_subclip(file_path, start_time, end_time, targetname=output_path)
+        
+        # VideoFileClipを使用してフレームレート制御付きで分割
+        with VideoFileClip(file_path) as video:
+            subclip = video.subclip(start_time, end_time)
+            if fps:
+                subclip = subclip.set_fps(fps)
+            subclip.write_videofile(output_path, verbose=False, logger=None)
 
-        # 次の分割範囲を更新
-        start_time += duration
-        end_time = start_time + duration
 
-
-def split_videos_in_directory(directory: str, duration: int) -> None:
+def split_videos_in_directory(directory: str, duration: int, fps: int = None) -> None:
     # ディレクトリ内のすべてのMP4ファイルを取得
     video_files = glob.glob(os.path.join(directory, "*.mp4"))
-    for video_file in video_files:
+    
+    # 進捗情報を表示
+    total_files = len(video_files)
+    print(f"処理対象の動画ファイル: {total_files}件")
+    
+    if total_files == 0:
+        print("処理対象の動画ファイルが見つかりませんでした。")
+        return
+    
+    for i, video_file in enumerate(video_files, 1):
+        file_name = os.path.basename(video_file)
+        print(f"[{i}/{total_files}] 処理中: {file_name}")
+        
         # 動画ファイル毎に分割処理
-        split_video(video_file, duration)
+        split_video(video_file, duration, fps)
+        
+        print(f"[{i}/{total_files}] 完了: {file_name}")
+    
+    print(f"全ての動画ファイルの処理が完了しました。({total_files}件)")
 
 
 # メイン処理
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("ディレクトリパスを引数として指定してください。")
+        print("使用方法: python main.py <ディレクトリパス> [duration] [fps]")
+        print("ディレクトリパス: 処理する動画ファイルがあるディレクトリ")
+        print("duration: 分割する秒数 (デフォルト: 600)")
+        print("fps: フレームレート (オプション)")
         sys.exit(1)
 
     directory_path = sys.argv[1]
@@ -61,4 +103,13 @@ if __name__ == "__main__":
         print("Durationは整数である必要があります。")
         sys.exit(1)
 
-    split_videos_in_directory(directory_path, duration)
+    # コマンドライン引数からfpsを取得し、指定がない場合はNoneをデフォルト値とする
+    fps = None
+    if len(sys.argv) > 3:
+        try:
+            fps = int(sys.argv[3])
+        except ValueError:
+            print("FPSは整数である必要があります。")
+            sys.exit(1)
+
+    split_videos_in_directory(directory_path, duration, fps)
