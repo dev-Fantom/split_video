@@ -61,9 +61,25 @@ def split_video(file_path: str, duration: int, fps: int = None) -> None:
 def split_videos_in_directory(directory: str, duration: int, fps: int = None) -> None:
     # ディレクトリ内のすべてのMP4ファイルを取得
     video_files = glob.glob(os.path.join(directory, "*.mp4"))
-    for video_file in video_files:
+    
+    # 進捗情報を表示
+    total_files = len(video_files)
+    print(f"処理対象の動画ファイル: {total_files}件")
+    
+    if total_files == 0:
+        print("処理対象の動画ファイルが見つかりませんでした。")
+        return
+    
+    for i, video_file in enumerate(video_files, 1):
+        file_name = os.path.basename(video_file)
+        print(f"[{i}/{total_files}] 処理中: {file_name}")
+        
         # 動画ファイル毎に分割処理
         split_video(video_file, duration, fps)
+        
+        print(f"[{i}/{total_files}] 完了: {file_name}")
+    
+    print(f"全ての動画ファイルの処理が完了しました。({total_files}件)")
 
 
 # メイン処理
