@@ -1,5 +1,5 @@
 import os
-import glob
+from pathlib import Path
 import sys
 
 from moviepy.video.io.VideoFileClip import VideoFileClip
@@ -59,9 +59,9 @@ def split_video(file_path: str, duration: int, fps: int = None) -> None:
 
 
 def split_videos_in_directory(directory: str, duration: int, fps: int = None) -> None:
-    # ディレクトリ内のすべてのMP4ファイルを取得
-    video_files = glob.glob(os.path.join(directory, "*.mp4"))
-    
+    # ディレクトリ内のすべてのMP4ファイルを再帰的に取得
+    video_files = sorted(list(Path(directory).rglob("*.mp4")))
+
     # 進捗情報を表示
     total_files = len(video_files)
     print(f"処理対象の動画ファイル: {total_files}件")
@@ -75,7 +75,7 @@ def split_videos_in_directory(directory: str, duration: int, fps: int = None) ->
         print(f"[{i}/{total_files}] 処理中: {file_name}")
         
         # 動画ファイル毎に分割処理
-        split_video(video_file, duration, fps)
+        split_video(str(video_file), duration, fps)
         
         print(f"[{i}/{total_files}] 完了: {file_name}")
     
